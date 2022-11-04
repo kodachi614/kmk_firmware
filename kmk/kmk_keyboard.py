@@ -330,6 +330,8 @@ class KMKKeyboard:
 
     def _init_matrix(self) -> None:
         if self.matrix is None:
+            if debug.enabled:
+                debug('Initialising default matrix scanner.')
             self.matrix = MatrixScanner(
                 column_pins=self.col_pins,
                 row_pins=self.row_pins,
@@ -542,6 +544,9 @@ class KMKKeyboard:
 
         if self._trigger_powersave_enable:
             self.powersave_enable()
+            self._trigger_powersave_enable = False
 
         if self._trigger_powersave_disable:
             self.powersave_disable()
+            self._trigger_powersave_disable = False
+
