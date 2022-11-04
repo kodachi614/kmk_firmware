@@ -108,6 +108,8 @@ class RGB(Extension):
         disable_auto_write=False,
         pixels=None,
         refresh_rate=60,
+        name=None,
+        enable_debug=False,
     ):
         self.pixel_pin = pixel_pin
         self.num_pixels = num_pixels
@@ -134,6 +136,12 @@ class RGB(Extension):
         self.refresh_rate = refresh_rate
 
         self.rgbw = bool(len(rgb_order) == 4)
+
+        self.name = name
+        self._debug = enable_debug
+
+        if self._debug:
+            debug(f"{self}: __init__")
 
         self._substep = 0
 
@@ -200,6 +208,11 @@ class RGB(Extension):
             on_release=handler_passthrough,
         )
 
+    def __str__(self):
+        nstr = self.name or ""
+
+        return f"<RGB {nstr}@{hex(id(self))}>"
+
     def on_runtime_enable(self, sandbox):
         return
 
@@ -207,6 +220,9 @@ class RGB(Extension):
         return
 
     def during_bootup(self, sandbox):
+        if self._debug:
+            debug(f"{self}: during_bootup")
+
         if self.pixels is None:
             import neopixel
 
@@ -225,7 +241,7 @@ class RGB(Extension):
             for pixels in self.pixels:
                 self.num_pixels += len(pixels)
 
-        if debug.enabled:
+        if self._debug:
             for n, pixels in enumerate(self.pixels):
                 debug(f'pixels[{n}] = {pixels.__class__}[{len(pixels)}]')
 
@@ -241,7 +257,7 @@ class RGB(Extension):
         return
 
     def after_hid_send(self, sandbox):
-        pass
+        self.animate()
 
     def on_powersave_enable(self, sandbox):
         return
@@ -466,6 +482,9 @@ class RGB(Extension):
         self.reverse_animation = False
         self.effect_init = False
 
+        if self._debug:
+            debug(f"{self}: Effect init")
+
     def _check_update(self):
         return bool(self.animation_mode == AnimationModes.STATIC_STANDBY)
 
@@ -509,23 +528,46 @@ class RGB(Extension):
         self.show()
 
     def effect_knight(self):
+        # Is it time to step?
+        if self._step < 1.0:
+            return
+
         # Determine which LEDs should be lit up
         self.disable_auto_write = True  # Turn off instantly showing
         self.off()  # Fill all off
+
         pos = int(self.pos)
 
         # Set all pixels on in range of animation length offset by position
         for i in range(pos, (pos + self.knight_effect_length)):
             self.set_hsv(self.hue, self.sat, self.val, i)
 
-        # Reverse animation when a boundary is hit
-        if pos >= self.num_pixels or pos - 1 < (self.knight_effect_length * -1):
+        if self._debug:
+            debug(f"{self} Knight: pos {self.pos} => {pos} of {self.num_pixels} rev {self.reverse_animation}")
+
+        # Have we hit the limit?
+        bounce = False
+
+        if self.reverse_animation:
+            if (self.pos - 1) < (self.knight_effect_length * -1):
+                bounce = True
+        else:
+            if (self.pos + (self._step / 2)) > self.num_pixels:
+                bounce = True
+
+        if bounce:
             self.reverse_animation = not self.reverse_animation
+
+        # Next, bump self.pos. If we just hit the limit, this _should_ always
+        # take us off the limit.
 
         if self.reverse_animation:
             self.pos -= self._step / 2
         else:
             self.pos += self._step / 2
+
+        if self._debug:
+            debug(f"{self}:     bounce {bounce} => {self.pos} rev {self.reverse_animation}")
 
         # Show final results
         self.disable_auto_write = False  # Resume showing changes
