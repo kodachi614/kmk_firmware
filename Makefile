@@ -104,6 +104,11 @@ reset-board:
 
 
 ifdef MOUNTPOINT
+
+tar:
+	@echo "===> Tarring up $(MOUNTPOINT)/kmk-$(DIST_DESCRIBE).tgz"
+	cd kmk && tar czf $(MOUNTPOINT)/kmk-$(DIST_DESCRIBE).tgz .
+
 ifdef BOARD
 copy-board:
 	@echo "===> Copying your board from $(BOARD) to $(MOUNTPOINT)"
@@ -140,6 +145,6 @@ copy-kmk:
 	@sync
 
 else # MOUNTPOINT
-copy-board copy-bootpy copy-compiled copy-keymap copy-kmk:
+tar copy-board copy-bootpy copy-compiled copy-keymap copy-kmk:
 	@echo "**** MOUNTPOINT must be defined (wherever your CIRCUITPY drive is mounted) ****" && exit 1
 endif # ifndef MOUNTPOINT
